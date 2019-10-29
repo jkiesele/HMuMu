@@ -128,11 +128,15 @@ if params.JSONFile != '' :
 
 # The treemaker
 process.tree = cms.EDAnalyzer('MuonHitsMapper',
-    addEventInfo  = cms.bool(params.addEventInfo),
-    muons         = cms.InputTag("muons"),
-    gens          = cms.InputTag("genParticles"),
-    pixelClusters = cms.InputTag("siPixelClusters"),
-    stripClusters = cms.InputTag("siStripClusters"),
+    addEventInfo    = cms.bool(params.addEventInfo),
+    hitSearchRadius = cms.double(1.0),
+    muons           = cms.InputTag("muons"),
+    gens            = cms.InputTag("genParticles"),
+    pixelClusters   = cms.InputTag("siPixelClusters"),
+    stripClusters   = cms.InputTag("siStripClusters"),
+    pixelCPE        = cms.string("PixelCPEGeneric"),
+    stripCPE        = cms.string("StripCPEfromTrackAngle"),
+    ttkBuilder      = cms.string("TransientTrackBuilder"),
 )
 
 # Defining the path

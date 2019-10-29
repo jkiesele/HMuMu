@@ -20,7 +20,7 @@
 // system include files
 #include <memory>
 #include <vector>
-#include <iostream>
+#include <string>
 
 // ROOT include files
 #include <TTree.h>
@@ -83,6 +83,10 @@ class MuonHitsMapper : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
         virtual void endJob() override;
 
         bool addEventInfo;
+        double radiusForNearbyHits;
+        std::string pixelCPETag;
+        std::string stripCPETag;
+        std::string ttkBuildTag;
 
         const edm::EDGetTokenT<std::vector<reco::Muon> >              muonsToken;
         const edm::EDGetTokenT<std::vector<reco::GenParticle> >       gensToken;
@@ -109,7 +113,11 @@ class MuonHitsMapper : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
 };
 
 MuonHitsMapper::MuonHitsMapper(const edm::ParameterSet& iConfig):
-    addEventInfo(iConfig.existsAs<bool>("addEventInfo") ? iConfig.getParameter<bool>("addEventInfo") : false),
+    addEventInfo       (iConfig.existsAs<bool>       ("addEventInfo")    ? iConfig.getParameter<bool>       ("addEventInfo")    : false),
+    radiusForNearbyHits(iConfig.existsAs<double>     ("hitSearchRadius") ? iConfig.getParameter<double>     ("hitSearchRadius") : 1.0),
+    pixelCPETag        (iConfig.existsAs<std::string>("pixelCPE")        ? iConfig.getParameter<std::string>("pixelCPE")        : "PixelCPEGeneric"),
+    stripCPETag        (iConfig.existsAs<std::string>("stripCPE")        ? iConfig.getParameter<std::string>("stripCPE")        : "StripCPEfromTrackAngle"),
+    ttkBuildTag        (iConfig.existsAs<std::string>("ttkBuilder")      ? iConfig.getParameter<std::string>("ttkBuilder")      : "TransientTrackBuilder"),
     muonsToken        (consumes<std::vector<reco::Muon> >             (iConfig.getParameter<edm::InputTag>("muons"))),
     gensToken         (consumes<std::vector<reco::GenParticle> >      (iConfig.getParameter<edm::InputTag>("gens"))),
     pixelClustersToken(consumes<edmNew::DetSetVector<SiPixelCluster> >(iConfig.getParameter<edm::InputTag>("pixelClusters"))),
@@ -141,15 +149,15 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
     iSetup.get<TrackerDigiGeometryRecord>().get(trackerGeometry);
 
     ESHandle<PixelClusterParameterEstimator> pixelCPEH;
-    iSetup.get<TkPixelCPERecord>().get("PixelCPEGeneric", pixelCPEH);
+    iSetup.get<TkPixelCPERecord>().get(pixelCPETag, pixelCPEH);
     const PixelCPEBase* pix_cpe = dynamic_cast<const PixelCPEBase*>(&(*pixelCPEH));
  
     ESHandle<StripClusterParameterEstimator> stripCPEH;
-    iSetup.get<TkStripCPERecord>().get("StripCPEfromTrackAngle", stripCPEH);
+    iSetup.get<TkStripCPERecord>().get(stripCPETag, stripCPEH);
     const StripClusterParameterEstimator* str_cpe = &(*stripCPEH);
 
     ESHandle<TransientTrackBuilder> ttBuilderH;
-    iSetup.get<TransientTrackRecord>().get("TransientTrackBuilder", ttBuilderH);
+    iSetup.get<TransientTrackRecord>().get(ttkBuildTag, ttBuilderH);
  
     typedef edm::Ref<edmNew::DetSetVector<SiStripCluster>, SiStripCluster> ClusterStripRef;
     typedef edm::Ref<edmNew::DetSetVector<SiPixelCluster>, SiPixelCluster> ClusterPixelRef;
@@ -229,7 +237,8 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
                     GlobalPoint gp = du->surface().toGlobal(lp);
                     TVector3 hv;
                     hv.SetXYZ(gp.x(), gp.y(), gp.z());
-                    if (hv.DeltaR(hit) < 0.1) add_cluster = true;
+                    double rad = (hv-hit).Mag();
+                    if (rad < radiusForNearbyHits) add_cluster = true;
                 }
                 for (std::size_t j = 0; j < strc.size(); j++) {
                     auto du = dynamic_cast<const StripGeomDetUnit*>(trackerGeometry->idToDet(strc[j].second));
@@ -238,7 +247,8 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
                     GlobalPoint gp = du->surface().toGlobal(lp);
                     TVector3 hv;
                     hv.SetXYZ(gp.x(), gp.y(), gp.z());
-                    if (hv.DeltaR(hit) < 0.1) add_cluster = true;
+                    double rad = (hv-hit).Mag();
+                    if (rad < radiusForNearbyHits) add_cluster = true;
                 }
                 if (add_cluster) {
                     if (matchedToMu) hitt *= -1;
@@ -293,7 +303,8 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
                     GlobalPoint gp = du->surface().toGlobal(lp);
                     TVector3 hv;
                     hv.SetXYZ(gp.x(), gp.y(), gp.z());
-                    if (hv.DeltaR(hit) < 0.1) add_cluster = true;
+                    double rad = (hv-hit).Mag();
+                    if (rad < radiusForNearbyHits) add_cluster = true;
                 }
                 for (std::size_t j = 0; j < strc.size(); j++) {
                     auto du = dynamic_cast<const StripGeomDetUnit*>(trackerGeometry->idToDet(strc[j].second));
@@ -302,7 +313,8 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
                     GlobalPoint gp = du->surface().toGlobal(lp);
                     TVector3 hv;
                     hv.SetXYZ(gp.x(), gp.y(), gp.z());
-                    if (hv.DeltaR(hit) < 0.1) add_cluster = true;
+                    double rad = (hv-hit).Mag();
+                    if (rad < radiusForNearbyHits) add_cluster = true;
                 }
                 if (add_cluster) {
                     if (matchedToMu) hitt *= -1;
