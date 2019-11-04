@@ -99,11 +99,14 @@ class MuonHitsMapper : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
         unsigned long lumi;
         unsigned long long event;
 
-        TVector3 genmup;
+        //TVector3 genmup;
+        std::vector<double> genmup;
         char     genmuq;
-        TVector3 muonp;
+        //TVector3 muonp;
+        std::vector<double> muonp;
         char     muonq;
-        TVector3 mutkp;
+        //TVector3 mutkp;
+        std::vector<double> mutkp;
         char     mutkq;
 
         //std::vector<TVector3> hits;
@@ -166,22 +169,40 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
 
     for (auto muons_iter = muonsH->begin(); muons_iter != muonsH->end(); ++muons_iter) {
 
+        genmup.clear();
+        muonp.clear();
+        mutkp.clear();
+
+        TVector3 gmu;
+        TVector3 rmu;
+
         if (muons_iter->innerTrack().isNull()) continue;
-        muonp.SetXYZ(muons_iter->px(), muons_iter->py(), muons_iter->pz());
+        //muonp.SetXYZ(muons_iter->px(), muons_iter->py(), muons_iter->pz());
+        rmu.SetXYZ(muons_iter->px(), muons_iter->py(), muons_iter->pz());
+        muonp.push_back(muons_iter->p());
+        muonp.push_back(muons_iter->eta());
+        muonp.push_back(muons_iter->phi());
         muonq = char(muons_iter->charge());
 
         double gen_dR = 1e10;
         if (gensH.isValid()) {
             for (auto gens_iter = gensH->begin(); gens_iter != gensH->end(); ++gens_iter) {
                 if (abs(gens_iter->pdgId()) != 13 || gens_iter->status() != 1) continue;
-                genmup.SetXYZ(gens_iter->px(), gens_iter->py(), gens_iter->pz());
+                //genmup.SetXYZ(gens_iter->px(), gens_iter->py(), gens_iter->pz());
+                gmu.SetXYZ(gens_iter->px(), gens_iter->py(), gens_iter->pz());
+                genmup.push_back(gens_iter->p());
+                genmup.push_back(gens_iter->eta());
+                genmup.push_back(gens_iter->phi());
                 genmuq = char(gens_iter->charge());
-                if (genmup.DeltaR(muonp) < gen_dR) gen_dR = genmup.DeltaR(muonp);
+                if (gmu.DeltaR(rmu) < gen_dR) gen_dR = gmu.DeltaR(rmu);
             }
         }
         if (gen_dR > 0.1) continue;
 
-        mutkp.SetXYZ(muons_iter->innerTrack()->px(), muons_iter->innerTrack()->py(), muons_iter->innerTrack()->pz());
+        //mutkp.SetXYZ(muons_iter->innerTrack()->px(), muons_iter->innerTrack()->py(), muons_iter->innerTrack()->pz());
+        mutkp.push_back(muons_iter->innerTrack()->p());
+        mutkp.push_back(muons_iter->innerTrack()->eta());
+        mutkp.push_back(muons_iter->innerTrack()->phi());
         mutkq = char(muons_iter->innerTrack()->charge());
 
         hits.clear();
@@ -382,9 +403,13 @@ void MuonHitsMapper::beginJob() {
     tree->Branch("muonq"                , &muonq                              , "muonq/b" );
     tree->Branch("mutkq"                , &mutkq                              , "mutkq/b" );
 
-    tree->Branch("genmup"               , "TVector3"                          , &genmup    , 32000, 0);
-    tree->Branch("muonp"                , "TVector3"                          , &muonp     , 32000, 0);
-    tree->Branch("mutkp"                , "TVector3"                          , &mutkp     , 32000, 0);
+    //tree->Branch("genmup"               , "TVector3"                          , &genmup    , 32000, 0);
+    //tree->Branch("muonp"                , "TVector3"                          , &muonp     , 32000, 0);
+    //tree->Branch("mutkp"                , "TVector3"                          , &mutkp     , 32000, 0);
+
+    tree->Branch("genmup"               , "std::vector<double>"               , &genmup    , 32000, 0);
+    tree->Branch("muonp"                , "std::vector<double>"               , &muonp     , 32000, 0);
+    tree->Branch("mutkp"                , "std::vector<double>"               , &mutkp     , 32000, 0);
 
     // Hits info
     //tree->Branch("hits"                 , "std::vector<TVector3>"             , &hits      , 32000, 0);
