@@ -190,11 +190,12 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
                 if (abs(gens_iter->pdgId()) != 13 || gens_iter->status() != 1) continue;
                 //genmup.SetXYZ(gens_iter->px(), gens_iter->py(), gens_iter->pz());
                 gmu.SetXYZ(gens_iter->px(), gens_iter->py(), gens_iter->pz());
+                if (gmu.DeltaR(rmu) > gen_dR) continue;
+                gen_dR = gmu.DeltaR(rmu);
                 genmup.push_back(gens_iter->p());
                 genmup.push_back(gens_iter->eta());
                 genmup.push_back(gens_iter->phi());
                 genmuq = char(gens_iter->charge());
-                if (gmu.DeltaR(rmu) < gen_dR) gen_dR = gmu.DeltaR(rmu);
             }
         }
         if (gen_dR > 0.1) continue;
