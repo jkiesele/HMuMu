@@ -106,10 +106,12 @@ class MuonHitsMapper : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
         TVector3 mutkp;
         char     mutkq;
 
-        std::vector<TVector3> hits;
+        //std::vector<TVector3> hits;
+        std::vector<std::vector<double> > hits;
         std::vector<char>     hittype;
         std::vector<double>   hiterrxx, hiterrxy, hiterryy;
-        std::vector<TVector3> trackpos;
+        //std::vector<TVector3> trackpos;
+        std::vector<std::vector<double> > trackpos;
 };
 
 MuonHitsMapper::MuonHitsMapper(const edm::ParameterSet& iConfig):
@@ -255,12 +257,25 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
                     TVector3 tpos;
                     GlobalPoint trackpoint = ttBuilderH->build(&(*(muons_iter->innerTrack()))).trajectoryStateClosestToPoint(globalPoint).position();
                     tpos.SetXYZ(trackpoint.x(), trackpoint.y(), trackpoint.z());
-                    hits.push_back(hit);
+
+                    std::vector<double> vhit;
+                    vhit.push_back(hit.Mag());
+                    vhit.push_back(hit.Eta());
+                    vhit.push_back(hit.Phi());
+
+                    std::vector<double> vtpos;
+                    vtpos.push_back(tpos.Mag());
+                    vtpos.push_back(tpos.Eta());
+                    vtpos.push_back(tpos.Phi());
+
+                    //hits.push_back(hit);
+                    hits.push_back(vhit);
                     hittype.push_back(hitt);
                     hiterrxx.push_back(hitexx);
                     hiterrxy.push_back(hitexy);
                     hiterryy.push_back(hiteyy);
-                    trackpos.push_back(tpos);
+                    //trackpos.push_back(tpos);
+                    trackpos.push_back(vtpos);
                 }
             }
         }
@@ -289,7 +304,6 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
                 if (subDet == GeomDetEnumerators::TOB) hitt = 4;
                 if (subDet == GeomDetEnumerators::TEC) hitt = 5;
         
-                std::vector<TVector3> vtpos; 
                 ClusterStripRef cref = edmNew::makeRefTo(stripClustersH, cluster);
                 bool matchedToMu = false;
                 bool add_cluster = false;
@@ -321,12 +335,25 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
                     TVector3 tpos;
                     GlobalPoint trackpoint = ttBuilderH->build(&(*(muons_iter->innerTrack()))).trajectoryStateClosestToPoint(globalPoint).position();
                     tpos.SetXYZ(trackpoint.x(), trackpoint.y(), trackpoint.z());
-                    hits.push_back(hit);
+
+                    std::vector<double> vhit;
+                    vhit.push_back(hit.Mag());
+                    vhit.push_back(hit.Eta());
+                    vhit.push_back(hit.Phi());
+
+                    std::vector<double> vtpos;
+                    vtpos.push_back(tpos.Mag());
+                    vtpos.push_back(tpos.Eta());
+                    vtpos.push_back(tpos.Phi());
+
+                    //hits.push_back(hit);
+                    hits.push_back(vhit);
                     hittype.push_back(hitt);
                     hiterrxx.push_back(hitexx);
                     hiterrxy.push_back(hitexy);
                     hiterryy.push_back(hiteyy);
-                    trackpos.push_back(tpos);
+                    //trackpos.push_back(tpos);
+                    trackpos.push_back(vtpos);
                 }
             }
         }
@@ -345,27 +372,29 @@ void MuonHitsMapper::beginJob() {
 
     // Event coordinates
     if (addEventInfo) {
-    tree->Branch("event"                , &event                  , "event/i" );
-    tree->Branch("run"                  , &run                    , "run/i"   );
-    tree->Branch("lumi"                 , &lumi                   , "lumi/i"  );
+    tree->Branch("event"                , &event                              , "event/i" );
+    tree->Branch("run"                  , &run                                , "run/i"   );
+    tree->Branch("lumi"                 , &lumi                               , "lumi/i"  );
     }
 
     // Muon info
-    tree->Branch("genmuq"               , &genmuq                 , "genmuq/b");
-    tree->Branch("muonq"                , &muonq                  , "muonq/b" );
-    tree->Branch("mutkq"                , &mutkq                  , "mutkq/b" );
+    tree->Branch("genmuq"               , &genmuq                             , "genmuq/b");
+    tree->Branch("muonq"                , &muonq                              , "muonq/b" );
+    tree->Branch("mutkq"                , &mutkq                              , "mutkq/b" );
 
-    tree->Branch("genmup"               , "TVector3"              , &genmup    , 32000, 0);
-    tree->Branch("muonp"                , "TVector3"              , &muonp     , 32000, 0);
-    tree->Branch("mutkp"                , "TVector3"              , &mutkp     , 32000, 0);
+    tree->Branch("genmup"               , "TVector3"                          , &genmup    , 32000, 0);
+    tree->Branch("muonp"                , "TVector3"                          , &muonp     , 32000, 0);
+    tree->Branch("mutkp"                , "TVector3"                          , &mutkp     , 32000, 0);
 
     // Hits info
-    tree->Branch("hits"                 , "std::vector<TVector3>" , &hits      , 32000, 0);
-    tree->Branch("hittype"              , "std::vector<char>"     , &hittype   , 32000, 0);
-    tree->Branch("hiterrxx"             , "std::vector<double>"   , &hiterrxx  , 32000, 0);
-    tree->Branch("hiterrxy"             , "std::vector<double>"   , &hiterrxy  , 32000, 0);
-    tree->Branch("hiterryy"             , "std::vector<double>"   , &hiterryy  , 32000, 0);
-    tree->Branch("trackpos"             , "std::vector<TVector3>" , &trackpos  , 32000, 0);
+    //tree->Branch("hits"                 , "std::vector<TVector3>"             , &hits      , 32000, 0);
+    tree->Branch("hits"                 , "std::vector<std::vector<double> >" , &hits      , 32000, 0);
+    tree->Branch("hittype"              , "std::vector<char>"                 , &hittype   , 32000, 0);
+    tree->Branch("hiterrxx"             , "std::vector<double>"               , &hiterrxx  , 32000, 0);
+    tree->Branch("hiterrxy"             , "std::vector<double>"               , &hiterrxy  , 32000, 0);
+    tree->Branch("hiterryy"             , "std::vector<double>"               , &hiterryy  , 32000, 0);
+    //tree->Branch("trackpos"             , "std::vector<TVector3>" , &trackpos  , 32000, 0);
+    tree->Branch("trackpos"             , "std::vector<std::vector<double> >" , &trackpos  , 32000, 0);
 }
 
 void MuonHitsMapper::endJob() {
