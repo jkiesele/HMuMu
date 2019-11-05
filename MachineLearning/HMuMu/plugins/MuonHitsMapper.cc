@@ -184,6 +184,24 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
         muonp.push_back(muons_iter->phi());
         muonq = char(muons_iter->charge());
 
+
+        //add here the muon segmenets
+        // something like this:
+        // std::vector<float> muonp_segments;
+        // remember to initialise the muonp_segments to -999 somewhere.  
+        // for (auto seg_iter = muon_iter->GetSegments(); seg_iter < size(muon_iter->GetSegments()); ++seg_iter){
+        //   muonp_segments.push_back(muon_iter->getSegments()
+        // }
+
+        for (const auto &ch : muons_iter->matches()) {  // loop over matched chambers
+          for(std::vector<reco::MuonSegmentMatch>::const_iterator matseg = ch.segmentMatches.begin(); matseg != ch.segmentMatches.end(); matseg++) {  // loop over matched segments in a given chamber
+             // do something with segment here
+             std::cout << "Segment x " << matseg->x << std::endl;
+             std::cout << "Segments y" << matseg->y << std::endl;
+          }
+        }
+
+
         double gen_dR = 1e10;
         if (gensH.isValid()) {
             for (auto gens_iter = gensH->begin(); gens_iter != gensH->end(); ++gens_iter) {
