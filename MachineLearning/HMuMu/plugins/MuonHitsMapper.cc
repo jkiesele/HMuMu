@@ -205,8 +205,6 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
         segxerr.clear();
         segyerr.clear();
 
-        std::cout << "######## Different muon #######" << std::endl;
-        std::cout << "Muon p, eta, phi : " << muons_iter->p() << ", " << muons_iter->eta() << ", " << muons_iter->phi() << std::endl; 
         for (const auto &ch : muons_iter->matches()) {  // loop over matched chambers
           segx_v_.clear();
           segy_v_.clear();
@@ -222,15 +220,7 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
             float dr_ = sqrt( pow(matseg->x - ch.x,2) + pow(matseg->y - ch.y,2 ) );
             segmudr_v_.push_back(sqrt(matseg->x*matseg->x + matseg->y*matseg->y));
             segmudrerr_v_.push_back(dr_ * sqrt( (matseg->xErr/matseg->x)*(matseg->xErr/matseg->x) + (matseg->yErr/matseg->y)*(matseg->yErr/matseg->y) ) );
-            // DEBUG
-            std::cout << "Station : " << ch.station() << std::endl;
-            // loop over matched segments in a given chamber
-            std::cout << "Segment x " << matseg->x << std::endl;
-            std::cout << "Segments y" << matseg->y << std::endl;
-            // MuonChamberMatch, x and y values are from trajectory state on a given chamber
-            std::cout << "Muon chamber match x = " << ch.x << std::endl;
-            std::cout << "Muon chamber match y = " << ch.y << std::endl;
-          }
+         }
 
           trackmuposx.push_back(ch.x);
           trackmuposy.push_back(ch.y);
@@ -489,21 +479,21 @@ void MuonHitsMapper::beginJob() {
 
 
     // muon xy distance from segment 
-    tree->Branch("segmudr"             , "std::vector< std::vector<float> >"                , &segmudr     , 32000, 0);
-    tree->Branch("segmudrerr"             , "std::vector< std::vector<float> >"                , &segmudrerr     , 32000, 0);
+    tree->Branch("segmudr"             , "std::vector< std::vector<float> >"  , &segmudr     , 32000, 0);
+    tree->Branch("segmudrerr"          , "std::vector< std::vector<float> >"  , &segmudrerr  , 32000, 0);
  
     // muon segments info
-    tree->Branch("segx"                , "std::vector< std::vector<float> >"                , &segx     , 32000, 0);
-    tree->Branch("segy"                , "std::vector< std::vector<float> >"                , &segy     , 32000, 0);
-    tree->Branch("segxerr"                , "std::vector< std::vector<float> >"                , &segxerr     , 32000, 0);
-    tree->Branch("segyerr"                , "std::vector< std::vector<float> >"                , &segyerr     , 32000, 0);
+    tree->Branch("segx"                , "std::vector< std::vector<float> >"  , &segx        , 32000, 0);
+    tree->Branch("segy"                , "std::vector< std::vector<float> >"  , &segy        , 32000, 0);
+    tree->Branch("segxerr"             , "std::vector< std::vector<float> >"  , &segxerr     , 32000, 0);
+    tree->Branch("segyerr"             , "std::vector< std::vector<float> >"  , &segyerr     , 32000, 0);
  
     // muon track position in muon chambers
-    tree->Branch("trackmuposx"                , "std::vector<float>"                , &trackmuposx     , 32000, 0);
-    tree->Branch("trackmuposy"                , "std::vector<float>"                , &trackmuposy     , 32000, 0);
-    tree->Branch("trackmuposxerr"                , "std::vector<float>"                , &trackmuposxerr     , 32000, 0);
-    tree->Branch("trackmuposyerr"                , "std::vector<float>"                , &trackmuposyerr     , 32000, 0);
-    tree->Branch("trackmupostation"                , "std::vector<unsigned int>"                , &trackmupostation     , 32000, 0);
+    tree->Branch("trackmuposx"         , "std::vector<float>"                , &trackmuposx     , 32000, 0);
+    tree->Branch("trackmuposy"         , "std::vector<float>"                , &trackmuposy     , 32000, 0);
+    tree->Branch("trackmuposxerr"      , "std::vector<float>"                , &trackmuposxerr     , 32000, 0);
+    tree->Branch("trackmuposyerr"      , "std::vector<float>"                , &trackmuposyerr     , 32000, 0);
+    tree->Branch("trackmupostation"    , "std::vector<unsigned int>"         , &trackmupostation   , 32000, 0);
 }
 
 void MuonHitsMapper::endJob() {
