@@ -127,7 +127,7 @@ if params.JSONFile != '' :
     process.source.lumisToProcess = LumiList.LumiList(filename = params.JSONFile).getVLuminosityBlockRange()
 
 # The treemaker
-process.tree = cms.EDAnalyzer('MuonHitsMapper',
+process.mytree = cms.EDAnalyzer('MuonHitsMapper',
     addEventInfo    = cms.bool(params.addEventInfo),
     hitSearchRadius = cms.double(1.0),
     muons           = cms.InputTag("muons"),
@@ -140,4 +140,4 @@ process.tree = cms.EDAnalyzer('MuonHitsMapper',
 )
 
 # Defining the path
-process.p = cms.Path(process.tree)
+process.p = cms.Path(process.mytree)
