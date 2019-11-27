@@ -69,6 +69,37 @@
 
 #include "CommonTools/UtilAlgos/interface/TFileService.h" 
 
+#include "DataFormats/Math/interface/deltaPhi.h"
+
+template<typename _RandomAccessIterator>
+inline std::vector<size_t>
+retsort(_RandomAccessIterator __first, _RandomAccessIterator __last){
+    typedef typename std::iterator_traits<_RandomAccessIterator>::value_type
+            _ValueType;
+    std::vector<_ValueType> copy(__first,__last); //copy
+    std::vector<size_t> sortedilo;
+    std::sort(copy.begin(),copy.end());
+
+    for(_RandomAccessIterator it=copy.begin();it!=copy.end();++it){
+        //get the position in input
+        size_t pos=std::find(__first,__last,*it)-__first;
+        while(std::find(sortedilo.begin(),sortedilo.end(),pos)!=sortedilo.end())
+            pos=std::find(__first+pos+1,__last,*it)-__first;
+        sortedilo.push_back(pos);
+    }
+    return sortedilo;
+}
+
+template<class T>
+std::vector<T> sortByIndex(const std::vector<T> & in, const std::vector<size_t>& sorting){
+    std::vector<T> out;
+    for(size_t i=0;i<sorting.size();i++)
+        out.push_back( in.at(sorting.at(i)) );
+    return out;
+}
+
+
+
 class MuonHitsMapper : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
     public:
         explicit MuonHitsMapper(const edm::ParameterSet&);
@@ -100,28 +131,29 @@ class MuonHitsMapper : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
         unsigned long long event;
 
         //TVector3 genmup;
-        std::vector<double> genmup;
+        std::vector<float> genmup;
         char     genmuq;
         //TVector3 muonp;
-        std::vector<double> muonp;
+        std::vector<float> muonp;
         char     muonq;
         //TVector3 mutkp;
-        std::vector<double> mutkp;
+        std::vector<float> mutkp;
         char     mutkq;
 
         //std::vector<TVector3> hits;
-        std::vector<std::vector<double> > hits;
+        std::vector<std::vector<float> > hits;
         std::vector<char>     hittype;
-        std::vector<double>   hiterrxx, hiterrxy, hiterryy;
+        std::vector<float> hitmatched;
+        std::vector<float>   hiterrxx, hiterrxy, hiterryy;
         //std::vector<TVector3> trackpos;
-        std::vector<std::vector<double> > trackpos;
+        std::vector<std::vector<float> > trackpos;
+        std::vector<float> hitDRdisttotrack,hiteucldisttotrack;
 
         // muon chambers segments and muon track branches
         std::vector<float> trackmuposx, trackmuposy,  trackmuposxerr, trackmuposyerr;
         std::vector<unsigned int> trackmupostation;
-        std::vector< std::vector<float> > segx, segy, segxerr, segyerr, segmudr, segmudrerr ;
+        std::vector<float>  segx, segy, segxerr, segyerr, segmudr, segmudrerr ;
         //utils
-        std::vector<float>  segx_v_, segy_v_, segxerr_v_, segyerr_v_, segmudr_v_, segmudrerr_v_ ;
 
 
 };
@@ -176,6 +208,7 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
     typedef edm::Ref<edmNew::DetSetVector<SiStripCluster>, SiStripCluster> ClusterStripRef;
     typedef edm::Ref<edmNew::DetSetVector<SiPixelCluster>, SiPixelCluster> ClusterPixelRef;
 
+
     for (auto muons_iter = muonsH->begin(); muons_iter != muonsH->end(); ++muons_iter) {
 
         genmup.clear();
@@ -206,49 +239,56 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
         segyerr.clear();
 
         for (const auto &ch : muons_iter->matches()) {  // loop over matched chambers
-          segx_v_.clear();
-          segy_v_.clear();
-          segxerr_v_.clear();
-          segyerr_v_.clear();
-          segmudr_v_.clear();
-          segmudrerr_v_.clear();
-          for(std::vector<reco::MuonSegmentMatch>::const_iterator matseg = ch.segmentMatches.begin(); matseg != ch.segmentMatches.end(); matseg++) {  
-            segx_v_.push_back(matseg->x);
-            segy_v_.push_back(matseg->y);
-            segxerr_v_.push_back(matseg->xErr);
-            segyerr_v_.push_back(matseg->yErr);
-            float dr_ = sqrt( pow(matseg->x - ch.x,2) + pow(matseg->y - ch.y,2 ) );
-            segmudr_v_.push_back(sqrt(matseg->x*matseg->x + matseg->y*matseg->y));
-            segmudrerr_v_.push_back(dr_ * sqrt( (matseg->xErr/matseg->x)*(matseg->xErr/matseg->x) + (matseg->yErr/matseg->y)*(matseg->yErr/matseg->y) ) );
-         }
+            for(std::vector<reco::MuonSegmentMatch>::const_iterator matseg = ch.segmentMatches.begin(); matseg != ch.segmentMatches.end(); matseg++) {
+                segx.push_back(matseg->x);
+                segy.push_back(matseg->y);
+                segxerr.push_back(matseg->xErr);
+                segyerr.push_back(matseg->yErr);
+                float dr_ = sqrt( pow(matseg->x - ch.x,2) + pow(matseg->y - ch.y,2 ) );
+                segmudr.push_back(sqrt(matseg->x*matseg->x + matseg->y*matseg->y));
+                segmudrerr.push_back(dr_ * sqrt( (matseg->xErr/matseg->x)*(matseg->xErr/matseg->x) + (matseg->yErr/matseg->y)*(matseg->yErr/matseg->y) ) );
+                trackmuposx.push_back(ch.x);
+                trackmuposy.push_back(ch.y);
+                trackmuposxerr.push_back(ch.xErr);
+                trackmuposyerr.push_back(ch.yErr);
+                trackmupostation.push_back(ch.station());
+            }
+            if(ch.segmentMatches.size()<1){
+                segx.push_back(0);
+                segy.push_back(0);
+                segxerr.push_back(0);
+                segyerr.push_back(0);
+                segmudr.push_back(0);
+                segmudrerr.push_back(0);
+                trackmuposx.push_back(ch.x);
+                trackmuposy.push_back(ch.y);
+                trackmuposxerr.push_back(ch.xErr);
+                trackmuposyerr.push_back(ch.yErr);
+                trackmupostation.push_back(ch.station());
+            }
 
-          trackmuposx.push_back(ch.x);
-          trackmuposy.push_back(ch.y);
-          trackmuposxerr.push_back(ch.xErr);
-          trackmuposyerr.push_back(ch.yErr);
-          trackmupostation.push_back(ch.station());
- 
-          segx.push_back(segx_v_);
-          segy.push_back(segy_v_);
-          segxerr.push_back(segxerr_v_);
-          segyerr.push_back(segyerr_v_);
-          segmudr.push_back(segmudr_v_);
-          segmudrerr.push_back(segmudrerr_v_);
         }
 
 
         double gen_dR = 1e10;
         if (gensH.isValid()) {
-            for (auto gens_iter = gensH->begin(); gens_iter != gensH->end(); ++gens_iter) {
+            auto use_gens_iter = gensH->end();
+            for (auto gens_iter = gensH->begin(); gens_iter <= gensH->end(); ++gens_iter) {
+                if(gens_iter == gensH->end()) break;
                 if (abs(gens_iter->pdgId()) != 13 || gens_iter->status() != 1) continue;
                 //genmup.SetXYZ(gens_iter->px(), gens_iter->py(), gens_iter->pz());
                 gmu.SetXYZ(gens_iter->px(), gens_iter->py(), gens_iter->pz());
                 if (gmu.DeltaR(rmu) > gen_dR) continue;
                 gen_dR = gmu.DeltaR(rmu);
-                genmup.push_back(gens_iter->p());
-                genmup.push_back(gens_iter->eta());
-                genmup.push_back(gens_iter->phi());
-                genmuq = char(gens_iter->charge());
+                use_gens_iter=gens_iter;
+            }
+            if(use_gens_iter != gensH->end()){
+                genmup.push_back(use_gens_iter->p());
+                genmup.push_back(use_gens_iter->px());
+                genmup.push_back(use_gens_iter->py());
+                genmup.push_back(use_gens_iter->eta());
+                genmup.push_back(use_gens_iter->phi());
+                genmuq = char(use_gens_iter->charge());
             }
         }
         if (gen_dR > 0.1) continue;
@@ -261,11 +301,13 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
 
         hits.clear();
         hittype.clear();
+        hitmatched.clear();
         hiterrxx.clear();
         hiterrxy.clear();
         hiterryy.clear();
         trackpos.clear();
-
+        hitDRdisttotrack.clear();
+        hiteucldisttotrack.clear();
 
         std::vector<std::pair<ClusterPixelRef, DetId> > pixc;
         std::vector<std::pair<ClusterStripRef, DetId> > strc;
@@ -334,19 +376,35 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
                     GlobalPoint trackpoint = ttBuilderH->build(&(*(muons_iter->innerTrack()))).trajectoryStateClosestToPoint(globalPoint).position();
                     tpos.SetXYZ(trackpoint.x(), trackpoint.y(), trackpoint.z());
 
-                    std::vector<double> vhit;
+                    std::vector<float> vhit;
                     vhit.push_back(hit.Mag());
                     vhit.push_back(hit.Eta());
-                    vhit.push_back(hit.Phi());
+                    vhit.push_back(reco::deltaPhi(hit.Phi(), muons_iter->phi()));
+                    vhit.push_back(sqrt(hit.x()*hit.x() + hit.y()*hit.y()));
+                    vhit.push_back(hit.x());
+                    vhit.push_back(hit.y());
+                    vhit.push_back(hit.z());
 
-                    std::vector<double> vtpos;
+                    std::vector<float> vtpos;
                     vtpos.push_back(tpos.Mag());
                     vtpos.push_back(tpos.Eta());
-                    vtpos.push_back(tpos.Phi());
+                    vtpos.push_back(reco::deltaPhi(tpos.Phi(), muons_iter->phi()));
+                    vtpos.push_back(sqrt(tpos.x()*tpos.x() + tpos.y()*tpos.y()));
+                    vtpos.push_back(tpos.x());
+                    vtpos.push_back(tpos.y());
+                    vtpos.push_back(tpos.z());
+
+                    auto distance = tpos.DeltaR(hit);
+                    hitDRdisttotrack.push_back( distance);
+                    hiteucldisttotrack.push_back((tpos - hit).Mag());
 
                     //hits.push_back(hit);
                     hits.push_back(vhit);
                     hittype.push_back(hitt);
+                    if (matchedToMu)
+                        hitmatched.push_back(1);
+                    else
+                        hitmatched.push_back(0);
                     hiterrxx.push_back(hitexx);
                     hiterrxy.push_back(hitexy);
                     hiterryy.push_back(hiteyy);
@@ -412,19 +470,36 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
                     GlobalPoint trackpoint = ttBuilderH->build(&(*(muons_iter->innerTrack()))).trajectoryStateClosestToPoint(globalPoint).position();
                     tpos.SetXYZ(trackpoint.x(), trackpoint.y(), trackpoint.z());
 
-                    std::vector<double> vhit;
+                    std::vector<float> vhit;
                     vhit.push_back(hit.Mag());
                     vhit.push_back(hit.Eta());
-                    vhit.push_back(hit.Phi());
+                    vhit.push_back(reco::deltaPhi(hit.Phi(), muons_iter->phi()));
+                    vhit.push_back(sqrt(hit.x()*hit.x() + hit.y()*hit.y()));
+                    vhit.push_back(hit.x());
+                    vhit.push_back(hit.y());
+                    vhit.push_back(hit.z());
 
-                    std::vector<double> vtpos;
+                    std::vector<float> vtpos;
                     vtpos.push_back(tpos.Mag());
                     vtpos.push_back(tpos.Eta());
-                    vtpos.push_back(tpos.Phi());
+                    vtpos.push_back(reco::deltaPhi(tpos.Phi(), muons_iter->phi()));
+                    vtpos.push_back(sqrt(tpos.x()*tpos.x() + tpos.y()*tpos.y()));
+                    vtpos.push_back(tpos.x());
+                    vtpos.push_back(tpos.y());
+                    vtpos.push_back(tpos.z());
+
+
+                    auto distance = tpos.DeltaR(hit);
+                    hitDRdisttotrack.push_back( distance);
+                    hiteucldisttotrack.push_back((tpos - hit).Mag());
 
                     //hits.push_back(hit);
                     hits.push_back(vhit);
                     hittype.push_back(hitt);
+                    if (matchedToMu)
+                        hitmatched.push_back(1);
+                    else
+                        hitmatched.push_back(0);
                     hiterrxx.push_back(hitexx);
                     hiterrxy.push_back(hitexy);
                     hiterryy.push_back(hiteyy);
@@ -433,6 +508,27 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
                 }
             }
         }
+        //order all tracker hits by distance to track for truncation later
+
+        auto sortindices  =  retsort(hitDRdisttotrack.begin(),hitDRdisttotrack.end());
+        hits = sortByIndex(hits, sortindices);
+        hittype = sortByIndex(hittype, sortindices);
+        hitmatched = sortByIndex(hitmatched, sortindices);
+        hiterrxx = sortByIndex(hiterrxx, sortindices);
+        hiterrxy = sortByIndex(hiterrxy, sortindices);
+        hiterryy = sortByIndex(hiterryy, sortindices);
+        trackpos = sortByIndex(trackpos, sortindices);
+
+        for(const auto& d: hitDRdisttotrack)
+            std::cout << d << ", ";
+        std::cout << std::endl;
+
+        hitDRdisttotrack = sortByIndex(hitDRdisttotrack, sortindices);
+        hiteucldisttotrack = sortByIndex(hiteucldisttotrack, sortindices);
+
+        for(const auto& d: hitDRdisttotrack)
+            std::cout << d << ", ";
+        std::cout << std::endl;
 
         tree->Fill();
     }
@@ -462,31 +558,34 @@ void MuonHitsMapper::beginJob() {
     //tree->Branch("muonp"                , "TVector3"                          , &muonp     , 32000, 0);
     //tree->Branch("mutkp"                , "TVector3"                          , &mutkp     , 32000, 0);
 
-    tree->Branch("genmup"               , "std::vector<double>"               , &genmup    , 32000, 0);
-    tree->Branch("muonp"                , "std::vector<double>"               , &muonp     , 32000, 0);
-    tree->Branch("mutkp"                , "std::vector<double>"               , &mutkp     , 32000, 0);
+    tree->Branch("genmup"               , "std::vector<float>"               , &genmup    , 32000, 0);
+    tree->Branch("muonp"                , "std::vector<float>"               , &muonp     , 32000, 0);
+    tree->Branch("mutkp"                , "std::vector<float>"               , &mutkp     , 32000, 0);
 
     // Hits info
     //tree->Branch("hits"                 , "std::vector<TVector3>"             , &hits      , 32000, 0);
-    tree->Branch("hits"                 , "std::vector<std::vector<double> >" , &hits      , 32000, 0);
+    tree->Branch("hits"                 , "std::vector<std::vector<float> >" , &hits      , 32000, 0);
     tree->Branch("hittype"              , "std::vector<char>"                 , &hittype   , 32000, 0);
-    tree->Branch("hiterrxx"             , "std::vector<double>"               , &hiterrxx  , 32000, 0);
-    tree->Branch("hiterrxy"             , "std::vector<double>"               , &hiterrxy  , 32000, 0);
-    tree->Branch("hiterryy"             , "std::vector<double>"               , &hiterryy  , 32000, 0);
+    tree->Branch("hitmatched"              , "std::vector<float>"                 , &hitmatched   , 32000, 0);
+    tree->Branch("hiterrxx"             , "std::vector<float>"               , &hiterrxx  , 32000, 0);
+    tree->Branch("hiterrxy"             , "std::vector<float>"               , &hiterrxy  , 32000, 0);
+    tree->Branch("hiterryy"             , "std::vector<float>"               , &hiterryy  , 32000, 0);
     //tree->Branch("trackpos"             , "std::vector<TVector3>" , &trackpos  , 32000, 0);
-    tree->Branch("trackpos"             , "std::vector<std::vector<double> >" , &trackpos  , 32000, 0);
+    tree->Branch("trackpos"             , "std::vector<std::vector<float> >" , &trackpos  , 32000, 0);
+    tree->Branch("hitDRdisttotrack"              , "std::vector<float>"                 , &hitDRdisttotrack   , 32000, 0);
+    tree->Branch("hiteucldisttotrack"              , "std::vector<float>"                 , &hiteucldisttotrack   , 32000, 0);
 
 
 
     // muon xy distance from segment 
-    tree->Branch("segmudr"             , "std::vector< std::vector<float> >"  , &segmudr     , 32000, 0);
-    tree->Branch("segmudrerr"          , "std::vector< std::vector<float> >"  , &segmudrerr  , 32000, 0);
+    tree->Branch("segmudr"             , "std::vector<float> "  , &segmudr     , 32000, 0);
+    tree->Branch("segmudrerr"          , "std::vector<float> "  , &segmudrerr  , 32000, 0);
  
     // muon segments info
-    tree->Branch("segx"                , "std::vector< std::vector<float> >"  , &segx        , 32000, 0);
-    tree->Branch("segy"                , "std::vector< std::vector<float> >"  , &segy        , 32000, 0);
-    tree->Branch("segxerr"             , "std::vector< std::vector<float> >"  , &segxerr     , 32000, 0);
-    tree->Branch("segyerr"             , "std::vector< std::vector<float> >"  , &segyerr     , 32000, 0);
+    tree->Branch("segx"                , "std::vector<float> "  , &segx        , 32000, 0);
+    tree->Branch("segy"                , "std::vector<float> "  , &segy        , 32000, 0);
+    tree->Branch("segxerr"             , "std::vector<float> "  , &segxerr     , 32000, 0);
+    tree->Branch("segyerr"             , "std::vector<float> "  , &segyerr     , 32000, 0);
  
     // muon track position in muon chambers
     tree->Branch("trackmuposx"         , "std::vector<float>"                , &trackmuposx     , 32000, 0);
