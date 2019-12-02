@@ -140,6 +140,9 @@ class MuonHitsMapper : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
         std::vector<float> mutkp;
         char     mutkq;
 
+        //other muon properties
+        std::vector<float> muonprop;
+
         //std::vector<TVector3> hits;
         std::vector<std::vector<float> > hits;
         std::vector<char>     hittype;
@@ -154,6 +157,8 @@ class MuonHitsMapper : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
         std::vector<unsigned int> trackmupostation;
         std::vector<float>  segx, segy, segxerr, segyerr, segmudr, segmudrerr ;
         //utils
+
+        int muoncounter;
 
 
 };
@@ -170,6 +175,7 @@ MuonHitsMapper::MuonHitsMapper(const edm::ParameterSet& iConfig):
     stripClustersToken(consumes<edmNew::DetSetVector<SiStripCluster> >(iConfig.getParameter<edm::InputTag>("stripClusters")))
 {
    usesResource("TFileService");
+   muoncounter=0;
 }
 
 
@@ -209,11 +215,15 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
     typedef edm::Ref<edmNew::DetSetVector<SiPixelCluster>, SiPixelCluster> ClusterPixelRef;
 
 
+
     for (auto muons_iter = muonsH->begin(); muons_iter != muonsH->end(); ++muons_iter) {
+
+
 
         genmup.clear();
         muonp.clear();
         mutkp.clear();
+        muonprop.clear();
 
         TVector3 gmu;
         TVector3 rmu;
@@ -221,10 +231,49 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
         if (muons_iter->innerTrack().isNull()) continue;
         //muonp.SetXYZ(muons_iter->px(), muons_iter->py(), muons_iter->pz());
         rmu.SetXYZ(muons_iter->px(), muons_iter->py(), muons_iter->pz());
-        muonp.push_back(muons_iter->p());
+
+        double gen_dR = 1e10;
+        if (gensH.isValid()) {
+            auto use_gens_iter = gensH->end();
+            for (auto gens_iter = gensH->begin(); gens_iter <= gensH->end(); ++gens_iter) {
+                if(gens_iter == gensH->end()) break;
+                if (abs(gens_iter->pdgId()) != 13 || gens_iter->status() != 1) continue;
+                //genmup.SetXYZ(gens_iter->px(), gens_iter->py(), gens_iter->pz());
+                gmu.SetXYZ(gens_iter->px(), gens_iter->py(), gens_iter->pz());
+                if (gmu.DeltaR(rmu) > gen_dR) continue;
+                gen_dR = gmu.DeltaR(rmu);
+                use_gens_iter=gens_iter;
+            }
+            if(use_gens_iter != gensH->end()){
+                genmup.push_back(use_gens_iter->px());
+                genmup.push_back(use_gens_iter->py());
+                genmup.push_back(use_gens_iter->pz());
+                genmup.push_back(use_gens_iter->eta());
+                genmup.push_back(use_gens_iter->phi());
+                genmuq = char(use_gens_iter->charge());
+            }
+        }
+        if (gen_dR > 0.1) continue;
+
+
+        muoncounter++;
+
+        //if((muoncounter<17925-2000))continue;
+
+        muonp.push_back(muons_iter->px());
+        muonp.push_back(muons_iter->py());
+        muonp.push_back(muons_iter->pz());
         muonp.push_back(muons_iter->eta());
         muonp.push_back(muons_iter->phi());
         muonq = char(muons_iter->charge());
+
+        muonprop.push_back(muons_iter->dxyError());
+        muonprop.push_back(muons_iter->innerTrack()->chi2());
+        muonprop.push_back(muons_iter->innerTrack()->etaError());//indicative of rel pzerr
+        muonprop.push_back(muons_iter->innerTrack()->normalizedChi2());
+        muonprop.push_back(muons_iter->innerTrack()->outerPx());
+        muonprop.push_back(muons_iter->innerTrack()->outerPy());
+        muonprop.push_back(muons_iter->innerTrack()->outerPz());
 
         segmudr.clear();
         segmudrerr.clear();
@@ -270,28 +319,7 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
         }
 
 
-        double gen_dR = 1e10;
-        if (gensH.isValid()) {
-            auto use_gens_iter = gensH->end();
-            for (auto gens_iter = gensH->begin(); gens_iter <= gensH->end(); ++gens_iter) {
-                if(gens_iter == gensH->end()) break;
-                if (abs(gens_iter->pdgId()) != 13 || gens_iter->status() != 1) continue;
-                //genmup.SetXYZ(gens_iter->px(), gens_iter->py(), gens_iter->pz());
-                gmu.SetXYZ(gens_iter->px(), gens_iter->py(), gens_iter->pz());
-                if (gmu.DeltaR(rmu) > gen_dR) continue;
-                gen_dR = gmu.DeltaR(rmu);
-                use_gens_iter=gens_iter;
-            }
-            if(use_gens_iter != gensH->end()){
-                genmup.push_back(use_gens_iter->p());
-                genmup.push_back(use_gens_iter->px());
-                genmup.push_back(use_gens_iter->py());
-                genmup.push_back(use_gens_iter->eta());
-                genmup.push_back(use_gens_iter->phi());
-                genmuq = char(use_gens_iter->charge());
-            }
-        }
-        if (gen_dR > 0.1) continue;
+
 
         //mutkp.SetXYZ(muons_iter->innerTrack()->px(), muons_iter->innerTrack()->py(), muons_iter->innerTrack()->pz());
         mutkp.push_back(muons_iter->innerTrack()->p());
@@ -509,6 +537,7 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
             }
         }
         //order all tracker hits by distance to track for truncation later
+        //way faster here than in python later
 
         auto sortindices  =  retsort(hitDRdisttotrack.begin(),hitDRdisttotrack.end());
         hits = sortByIndex(hits, sortindices);
@@ -519,16 +548,8 @@ void MuonHitsMapper::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
         hiterryy = sortByIndex(hiterryy, sortindices);
         trackpos = sortByIndex(trackpos, sortindices);
 
-        for(const auto& d: hitDRdisttotrack)
-            std::cout << d << ", ";
-        std::cout << std::endl;
-
         hitDRdisttotrack = sortByIndex(hitDRdisttotrack, sortindices);
         hiteucldisttotrack = sortByIndex(hiteucldisttotrack, sortindices);
-
-        for(const auto& d: hitDRdisttotrack)
-            std::cout << d << ", ";
-        std::cout << std::endl;
 
         tree->Fill();
     }
@@ -561,6 +582,9 @@ void MuonHitsMapper::beginJob() {
     tree->Branch("genmup"               , "std::vector<float>"               , &genmup    , 32000, 0);
     tree->Branch("muonp"                , "std::vector<float>"               , &muonp     , 32000, 0);
     tree->Branch("mutkp"                , "std::vector<float>"               , &mutkp     , 32000, 0);
+    tree->Branch("muonprop"                , "std::vector<float>"               , &muonprop     , 32000, 0);
+
+
 
     // Hits info
     //tree->Branch("hits"                 , "std::vector<TVector3>"             , &hits      , 32000, 0);
